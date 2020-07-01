@@ -2,14 +2,19 @@ import os
 import sys
 import time
 from typing import *
-import cv2
 
-#from KAmove import kick,soadd
-farm1Sudo = ('账号', '密码')  # 农场1会长
-farm2Sudo = ('', '')  # 农场2会长
-realAccount = ('', '')  # 大号
+from image_processing import image_to_position, screenshot
 
-center: Tuple[float, float]
+AndroidName = NewType('Android', str)
+
+
+class UserInfo(NamedTuple):
+    username: str
+    password: str
+
+farm1Sudo = UserInfo('账号', '密码')  # 农场1会长
+farm2Sudo = UserInfo('', '')  # 农场2会长
+realAccount = UserInfo('', '')  # 大号
 
 
 def connect():
@@ -19,63 +24,36 @@ def connect():
         print('连接失败')
 
 @overload
-def click(x: float, y: float, name: str): ...
+def click(x: float, y: float, name: AndroidName): ...
 
 @overload
-def click(pos: Tuple[float, float], name: str): ...
+def click(pos: Tuple[float, float], name: AndroidName): ...
 
 def click(*args):
     if len(args) == 2:
         (x, y), name = args
     else:
         x, y, name = args
+    x: float
+    y: float
+    name: AndroidName
     print(name)
     print(x, y)
     os.system(f'adb -s {name} shell input tap {x} {y}')
 
 
-def screenshot(name: str):
-    path = os.path.join(os.path.abspath('.'), 'images.png')
-    os.system(f'adb -s {name} shell screencap /data/screen.png')
-    os.system(f'adb -s {name} pull /data/screen.png {path}')
 
 
-def resize_img(img_path: str):
-    img1 = cv2.imread(img_path, 0)
-    img2 = cv2.imread('images.png', 0)
-    height, width = img1.shape[:2]
 
-    ratio = 1920 / img2.shape[1]
-    size = (int(width/ratio), int(height/ratio))
-    return cv2.resize(img1, size, interpolation=cv2.INTER_AREA)
-
-
-def image_to_position(image: str, m=0):
-    image_path = os.path.join('images', f'{image}.png')
-    screen = cv2.imread('images.png', 0)
-    template = resize_img(image_path)
-    methods = [cv2.TM_CCOEFF_NORMED, cv2.TM_SQDIFF_NORMED, cv2.TM_CCORR_NORMED]
-    image_x, image_y = template.shape[:2]
-    result = cv2.matchTemplate(screen, template, methods[m])
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-    print(image, max_val)
-    if max_val > 0.7:
-        global center
-        center = (max_loc[0] + image_y / 2, max_loc[1] + image_x / 2)
-        return center
-    else:
-        return False
-
-
-def main_run(nameList: List[str], images: List[str]):
+def main_run(nameList: List[AndroidName], images: List[str]):
     for image in images:
         while True:
             screenshot(nameList[0])
-            if image_to_position(image, m=0) != False:
+            if image_to_position(image):
                 for name in nameList:
                     while True:
                         screenshot(name)
-                        if image_to_position(image, m=0) != False:
+                        if center := image_to_position(image):
                             print(image)
                             print(center)
                             click(center, name)
@@ -84,11 +62,11 @@ def main_run(nameList: List[str], images: List[str]):
                 break
 
 
-def main_run_quick(nameList: List[str], images: List[str]):
+def main_run_quick(nameList: List[AndroidName], images: List[str]):
     for image in images:
         while True:
             screenshot(nameList[0])
-            if image_to_position(image, m=0) != False:
+            if center := image_to_position(image):
                 for name in nameList:
                     if image == 'timeadd':
                         os.system(f'adb -s {name} shell input swipe {center[0]} {center[1]} {center[0]} {center[1]} 6000')
@@ -98,14 +76,14 @@ def main_run_quick(nameList: List[str], images: List[str]):
                 break
 
 
-def to_homepage(nameList: List[str]):
+def to_homepage(nameList: List[AndroidName]):
     for i in range(0, 6):
         screenshot(nameList[0])
-        if image_to_position('skip', m=0) != False:
+        if image_to_position('skip'):
             for name in nameList:
-                for i in range(0, 3):
+                for _ in range(0, 3):
                     screenshot(name)
-                    if image_to_position('skip', m=0) != False:
+                    if center := image_to_position('skip'):
                         print('skip')
                         print(center)
 
@@ -119,18 +97,18 @@ def to_homepage(nameList: List[str]):
             click(640, 360, nameList[0])
 
 
-def login(name: str, idset: Tuple[str, str]):
+def login(name: AndroidName, idset: UserInfo):
     for image in ['ID', 'password', 'login']:
         while True:
             screenshot(name)
-            if image_to_position(image, m=0) != False:
+            if center := image_to_position(image):
                 print(image)
                 print(center)
                 click(center[0], center[1], name)
                 if image == 'ID':
-                    os.system(f'adb -s {name} shell input text "{idset[0]}"')
+                    os.system(f'adb -s {name} shell input text "{idset.username}"')
                 elif image == 'password':
-                    os.system(f'adb -s {name} shell input text "{idset[1]}"')
+                    os.system(f'adb -s {name} shell input text "{idset.password}"')
                 break
             else:
                 click(1200, 50, name)
@@ -143,7 +121,7 @@ def get_account(txtname: str):
         return lines
 
 
-def kick(enumList: List[str]):
+def kick(enumList: List[AndroidName]):
     main_run(enumList, ['society'])
     time.sleep(2.5)
     main_run(enumList, ['memberinfo'])
@@ -156,11 +134,11 @@ def kick(enumList: List[str]):
     main_run(enumList, ['homepage_red'])
 
 
-def soadd(enumList: List[str], soName: str):
+def soadd(enumList: List[AndroidName], soName: str):
     main_run(enumList, ['society', 'sosetting', 'sosearch'])
     screenshot(enumList[0])
     while True:
-        if image_to_position('soname', m=0) != False:
+        if center := image_to_position('soname'):
             print(center)
             click(center[0], center[1], enumList[0])
             os.system(f'adb -s {enumList[0]} shell input text "{soName}"')
@@ -187,21 +165,17 @@ if __name__ == '__main__':
 
     for i in range(0, len(lines)):
         lines[i] = lines[i].split('\t')[0]
-    lines = lines[0:-1]
+    lines = list(map(AndroidName, lines[0:-1]))
     print(lines)
 
-    '''
-    共28个号，4开为例
-    '''
+    # 共28个号，4开为例
     for step in range(0, 7):
 
-        '''
-        依次登陆4个号
-        '''
+        # 依次登录4个号
 
         for i in range(0, len(lines)):
-            login(lines[i], (accountList[i+step*4].split(' ')[0],
-                             accountList[i+step*4].split(' ')[1][0:-1]))
+            login(lines[i], UserInfo(accountList[i+step*4].split(' ')[0],
+                                     accountList[i+step*4].split(' ')[1][0:-1]))
             print(accountList[i+step*4].split(' ')[0])
         time.sleep(5)
         to_homepage(lines)
@@ -218,9 +192,8 @@ if __name__ == '__main__':
             click(1200, 50, name)
         main_run(lines, ['cancel_white'])
         time.sleep(2)
-        '''
-        地下城战斗
-        '''
+
+        # 地下城战斗
         main_run_quick(
             lines, ['explor_blue', 'underground', 'normalUD', 'ok_blue'])
         time.sleep(3)
@@ -235,16 +208,11 @@ if __name__ == '__main__':
         time.sleep(4)
         main_run_quick(lines, ['withdraw', 'ok_blue'])
 
-        '''
-        回登陆页，开始下一次iteration
-
-        '''
+        # 回登陆页，开始下一次iteration
         main_run_quick(lines, ['mainpage', 'backtotitle', 'ok_blue'])
         time.sleep(3)
 
-    '''
-    踢出换工会上支援
-    '''
+    # 踢出换工会上支援
     login(lines[0], farm1Sudo)
     # login(lines[1],farm2Sudo)
     login(lines[2], realAccount)
@@ -265,18 +233,13 @@ if __name__ == '__main__':
 
     accountList = get_account('accountlist2.txt')  # 获取账号列表2
 
-    '''
-    共12个号，4开为例
-    '''
+    # 共12个号，4开为例
     for step in range(0, 3):
 
-        '''
-        依次登陆4个号
-        '''
-
+        # 依次登陆4个号
         for i in range(0, len(lines)):
-            login(lines[i], (accountList[i+step*4].split(' ')[0],
-                             accountList[i+step*4].split(' ')[1][0:-1]))
+            login(lines[i], UserInfo(accountList[i+step*4].split(' ')[0],
+                                     accountList[i+step*4].split(' ')[1][0:-1]))
             print(accountList[i+step*4].split(' ')[0])
         time.sleep(5)
         to_homepage(lines)
@@ -293,9 +256,8 @@ if __name__ == '__main__':
             click(1200, 50, name)
         main_run(lines, ['cancel_white'])
         time.sleep(2)
-        '''
-        地下城战斗
-        '''
+
+        # 地下城战斗
         main_run_quick(
             lines, ['explor_blue', 'underground', 'normalUD', 'ok_blue'])
         time.sleep(3)
@@ -310,16 +272,11 @@ if __name__ == '__main__':
         time.sleep(4)
         main_run_quick(lines, ['withdraw', 'ok_blue'])
 
-        '''
-        回登陆页，开始下一次iteration
-
-        '''
+        # 回登陆页，开始下一次iteration
         main_run_quick(lines, ['mainpage', 'backtotitle', 'ok_blue'])
         time.sleep(3)
 
-    '''
-    踢出换工会上支援
-    '''
+    # 踢出换工会上支援
     # login(lines[0],farm1Sudo)
     login(lines[1], farm2Sudo)
     login(lines[2], realAccount)
