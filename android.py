@@ -1,11 +1,33 @@
+from __future__ import annotations
+
 import os
 import time
 from typing import *
 
 from image_processing import img_to_pos
+from utils import noop
 
 Pos = Tuple[float, float]
+EmptyCallback = Callable[[], Any]
 
+
+class Control:
+    def __init__(self, android: Android, pos: Pos):
+        self.android = android
+        self.pos = pos
+
+    def on(self, a: Android) -> Control:
+        return Control(a, self.pos)
+
+    def click(self):
+        self.android.click(self.pos)
+
+    def hold(self, duration: int):
+        self.android.hold(self.pos, duration)
+
+    def input(self, text: str):
+        self.click()
+        self.android.input(text)
 
 class Android:
     FINE_SLEEP_SECONDS = 0.01
@@ -34,6 +56,10 @@ class Android:
         os.system(
             f'adb -s {self.name} shell input swipe {from_[0]} {from_[1]} {to[0]} {to[1]} {duration}')
 
+    def hold(self, pos: Pos, duration: int):
+        self._log('Hold on', pos, f'{duration}ms')
+        self.swipe(pos, pos, duration)
+
     def input(self, text: str):
         self._log(f'Input "{text}"')
         os.system(f'adb -s {self.name} shell input text "{text}"')
@@ -45,23 +71,19 @@ class Android:
         os.system(f'adb -s {self.name} shell screencap /data/screen.png')
         os.system(f'adb -s {self.name} pull /data/screen.png {path}')
 
-    def find_image_like(self, img_name: str) -> Optional[Pos]:
-        self._log(f'Finding image like "{img_name}"')
+    def find_image_like(self, img_name: str) -> Optional[Control]:
+        self._log(f'Finding image like [{img_name}]')
         self.screenshot()
-        return img_to_pos(self.default_screenshot_path, os.path.join('images', img_name + '.png'))
+        pos = img_to_pos(self.default_screenshot_path, os.path.join('images', img_name + '.png'))
+        return Control(self, pos) if pos else None
 
-    def wait_for_image_like(self, img_name: str, /, on_missing: Callable[[], Any] = lambda: ()) -> Pos:
-        self._log(f'Waiting for image like "{img_name}"')
+    def wait_for_image_like(self, img_name: str, /, on_missing: EmptyCallback = noop) -> Control:
+        self._log(f'Waiting for image like [{img_name}]')
         for _ in range(int(Android.TIMEOUT / Android.COARSE_SLEEP_SECONDS)):
-            if pos := self.find_image_like(img_name):
-                return pos
+            if c := self.find_image_like(img_name):
+                return c
             on_missing()
             time.sleep(Android.COARSE_SLEEP_SECONDS)
         else:
-            self._log(f'"{img_name}" NOT FOUND')
+            self._log(f'[{img_name}] NOT FOUND')
             raise TimeoutError(f'Can not find button {img_name}')
-
-    def click_button_like(self, img_name: str):
-        # TODO: img_name / img_name
-        self._log(f'Clicking button like "{img_name}"')
-        self.click(self.wait_for_image_like(img_name))

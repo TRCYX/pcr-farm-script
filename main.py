@@ -25,19 +25,17 @@ def connect():
 
 def main_run(androids: List[Android], images: List[str]):
     for image in images:
-        androids[0].wait_for_image_like(image)
         for a in androids:
-            a.click_button_like(image)
+            a.wait_for_image_like(image).click()
 
 def main_run_quick(androids: List[Android], images: List[str]):
     for image in images:
-        center = androids[0].wait_for_image_like(image)
+        button = androids[0].wait_for_image_like(image)
         for a in androids:
-            a.click(center)
-            # if image == 'timeadd':
-            #     a.swipe(center, center, 6000)
-            # else:
-            #     a.click(center)
+            if image == 'timeadd':
+                button.on(a).hold(6000)
+            else:
+                button.on(a).click()
 
 
 def to_homepage(androids: List[Android]):
@@ -45,11 +43,11 @@ def to_homepage(androids: List[Android]):
         if androids[0].find_image_like('skip'):
             for a in androids:
                 for _ in range(3):
-                    if center := a.find_image_like('skip'):
+                    if button := a.find_image_like('skip'):
                         print('skip')
-                        print(center)
+                        print(button.pos)
 
-                        a.click(center)
+                        button.click()
                         time.sleep(0.5)
                         break
                     else:
@@ -60,16 +58,9 @@ def to_homepage(androids: List[Android]):
 
 
 def login(a: Android, user_info: UserInfo):
-    for image in ['ID', 'password', 'login']:
-        center = a.wait_for_image_like(image,
-            on_missing=lambda: a.click((1200, 50)))
-        print(image)
-        print(center)
-        a.click(center)
-        if image == 'ID':
-            a.input(user_info.username)
-        elif image == 'password':
-            a.input(user_info.password)
+    a.wait_for_image_like('username', on_missing=lambda: a.click((1200, 50))).input(user_info.username)
+    a.find_image_like('password').input(user_info.password)
+    a.find_image_like('login').click()
 
 
 def get_account(txtname: str):
@@ -80,7 +71,7 @@ def get_account(txtname: str):
 
 
 def kick(androids: List[Android]):
-    main_run(androids, ['guild'])
+    main_run(androids, ['clan'])
     time.sleep(2.5)
     main_run(androids, ['memberinfo'])
     time.sleep(3)
@@ -92,12 +83,11 @@ def kick(androids: List[Android]):
     main_run(androids, ['homepage_red'])
 
 
-def guild_add(androids: List[Android], guild_name: str):
-    main_run(androids, ['guild', 'guild_setting', 'guild_search'])
-    center = androids[0].wait_for_image_like('guild_name')
+def clan_add(androids: List[Android], clan_name: str):
+    main_run(androids, ['clan', 'clan_setting', 'clan_search'])
+    center = androids[0].wait_for_image_like('clan_name')
     print(center)
-    androids[0].click(center)
-    androids[0].input(guild_name)
+    center.input(clan_name)
     main_run(androids, ['ensurecn'])
     time.sleep(3)
     # click(enumList[0])
@@ -180,7 +170,7 @@ if __name__ == '__main__':
     time.sleep(2)
     kick([androids[0]])
     time.sleep(2)
-    guild_add([androids[2]], 'qxxxFarm2')
+    clan_add([androids[2]], 'qxxxFarm2')
     time.sleep(4)
     main_run([androids[2]], ['setassist', 'addselect', 'myassist', 'set', 'ok_blue'])
     time.sleep(3)
@@ -242,7 +232,7 @@ if __name__ == '__main__':
     time.sleep(2)
     kick([androids[1]])
     time.sleep(2)
-    guild_add([androids[2]], 'qxxxFarm1')
+    clan_add([androids[2]], 'qxxxFarm1')
     time.sleep(4)
     main_run([androids[2]], ['setassist', 'addselect', 'myassist', 'set', 'ok_blue'])
     time.sleep(3)
