@@ -11,9 +11,9 @@ class UserInfo(NamedTuple):
     username: str
     password: str
 
-farm1Sudo = UserInfo('账号', '密码')  # 农场1会长
-farm2Sudo = UserInfo('', '')  # 农场2会长
-realAccount = UserInfo('', '')  # 大号
+farm1_leader = UserInfo('账号', '密码')  # 农场1会长
+farm2_leader = UserInfo('', '')  # 农场2会长
+real_account = UserInfo('', '')  # 大号
 
 
 def connect():
@@ -79,33 +79,33 @@ def get_account(txtname: str):
         return lines
 
 
-def kick(enumList: List[Android]):
-    main_run(enumList, ['society'])
+def kick(androids: List[Android]):
+    main_run(androids, ['guild'])
     time.sleep(2.5)
-    main_run(enumList, ['memberinfo'])
+    main_run(androids, ['memberinfo'])
     time.sleep(3)
-    main_run(enumList, ['place', 'level', 'ok_blue'])
-    main_run(enumList, ['take', 'fuck_off', 'ok_blue'])
+    main_run(androids, ['place', 'level', 'ok_blue'])
+    main_run(androids, ['take', 'fuck_off', 'ok_blue'])
     time.sleep(2.5)
-    main_run(enumList, ['ok_white'])
-    main_run(enumList, ['level1', 'place2', 'ok_blue'])
-    main_run(enumList, ['homepage_red'])
+    main_run(androids, ['ok_white'])
+    main_run(androids, ['level1', 'place2', 'ok_blue'])
+    main_run(androids, ['homepage_red'])
 
 
-def soadd(enumList: List[Android], soName: str):
-    main_run(enumList, ['society', 'sosetting', 'sosearch'])
-    center = enumList[0].wait_for_image_like('soname')
+def guild_add(androids: List[Android], guild_name: str):
+    main_run(androids, ['guild', 'guild_setting', 'guild_search'])
+    center = androids[0].wait_for_image_like('guild_name')
     print(center)
-    enumList[0].click(center)
-    enumList[0].input(soName)
-    main_run(enumList, ['ensurecn'])
+    androids[0].click(center)
+    androids[0].input(guild_name)
+    main_run(androids, ['ensurecn'])
     time.sleep(3)
     # click(enumList[0])
-    main_run(enumList, ['search', 'farmicon', 'farmjoin'])
+    main_run(androids, ['search', 'farmicon', 'farmjoin'])
     time.sleep(3)
-    main_run(enumList, ['ok_blue'])
+    main_run(androids, ['ok_blue'])
     time.sleep(3)
-    main_run(enumList, ['ok_blue'])
+    main_run(androids, ['ok_blue'])
 
 
 if __name__ == '__main__':
@@ -141,7 +141,7 @@ if __name__ == '__main__':
         for _ in range(0, 3):
             main_run_quick(androids, ['add_blue', 'ok_blue', 'ok_white'])
 
-        main_run_quick(androids, ['explor', 'masterbatch',
+        main_run_quick(androids, ['adventure', 'masterbatch',
                              '3-1', 'timeadd', 'run_cn', 'ok_blue'])
         time.sleep(2)
         main_run_quick(androids, ['skip_cn', 'ok_white'])
@@ -152,13 +152,13 @@ if __name__ == '__main__':
 
         # 地下城战斗
         main_run_quick(
-            androids, ['explor_blue', 'underground', 'normalUD', 'ok_blue'])
+            androids, ['adventure_selected', 'underground', 'normalUD', 'ok_blue'])
         time.sleep(3)
         main_run_quick(androids, ['floor1'])
         time.sleep(4)
         main_run_quick(androids, ['challenge_blue'])
         time.sleep(3)
-        # mainrunQuick(lines,['u1','pico','kkl','cat','getassist','assist','battlestart','ok_blue'])
+        # mainrunQuick(lines,['yui','pecorine','kokkoro','kyaru','getassist','assist','battlestart','ok_blue'])
         main_run_quick(androids, ['getassist', 'assist', 'battlestart', 'ok_blue'])
         time.sleep(4)
         main_run_quick(androids, ['menu_white', 'giveup_white', 'giveup_blue'])
@@ -170,9 +170,9 @@ if __name__ == '__main__':
         time.sleep(3)
 
     # 踢出换工会上支援
-    login(androids[0], farm1Sudo)
+    login(androids[0], farm1_leader)
     # login(lines[1],farm2Sudo)
-    login(androids[2], realAccount)
+    login(androids[2], real_account)
     to_homepage([androids[0]])
     to_homepage([androids[2]])
     time.sleep(2)
@@ -180,7 +180,7 @@ if __name__ == '__main__':
     time.sleep(2)
     kick([androids[0]])
     time.sleep(2)
-    soadd([androids[2]], 'qxxxFarm2')
+    guild_add([androids[2]], 'qxxxFarm2')
     time.sleep(4)
     main_run([androids[2]], ['setassist', 'addselect', 'myassist', 'set', 'ok_blue'])
     time.sleep(3)
@@ -205,7 +205,7 @@ if __name__ == '__main__':
         for _ in range(0, 3):
             main_run_quick(androids, ['add_blue', 'ok_blue', 'ok_white'])
 
-        main_run_quick(androids, ['explor', 'masterbatch',
+        main_run_quick(androids, ['adventure', 'masterbatch',
                              '3-1', 'timeadd', 'run_cn', 'ok_blue'])
         time.sleep(2)
         main_run_quick(androids, ['skip_cn', 'ok_white'])
@@ -216,13 +216,13 @@ if __name__ == '__main__':
 
         # 地下城战斗
         main_run_quick(
-            androids, ['explor_blue', 'underground', 'normalUD', 'ok_blue'])
+            androids, ['adventure_selected', 'underground', 'normalUD', 'ok_blue'])
         time.sleep(3)
         main_run_quick(androids, ['floor1'])
         time.sleep(4)
         main_run_quick(androids, ['challenge_blue'])
         time.sleep(3)
-        # mainrunQuick(lines,['u1','pico','kkl','cat','getassist','assist','battlestart','ok_blue'])
+        # mainrunQuick(lines,['yui','pecorine','kokkoro','kyaru','getassist','assist','battlestart','ok_blue'])
         main_run_quick(androids, ['getassist', 'assist', 'battlestart', 'ok_blue'])
         time.sleep(4)
         main_run_quick(androids, ['menu_white', 'giveup_white', 'giveup_blue'])
@@ -235,14 +235,14 @@ if __name__ == '__main__':
 
     # 踢出换工会上支援
     # login(lines[0],farm1Sudo)
-    login(androids[1], farm2Sudo)
-    login(androids[2], realAccount)
+    login(androids[1], farm2_leader)
+    login(androids[2], real_account)
     to_homepage([androids[1], androids[2]])
     main_run([androids[1], androids[2]], ['close_white'])
     time.sleep(2)
     kick([androids[1]])
     time.sleep(2)
-    soadd([androids[2]], 'qxxxFarm1')
+    guild_add([androids[2]], 'qxxxFarm1')
     time.sleep(4)
     main_run([androids[2]], ['setassist', 'addselect', 'myassist', 'set', 'ok_blue'])
     time.sleep(3)
