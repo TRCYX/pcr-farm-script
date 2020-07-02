@@ -3,9 +3,8 @@ import sys
 import time
 from typing import *
 
-from image_processing import image_to_position, screenshot
-
-AndroidName = NewType('Android', str)
+from android import Android
+from image_processing import img_to_pos
 
 
 class UserInfo(NamedTuple):
@@ -23,95 +22,54 @@ def connect():
     except:
         print('连接失败')
 
-@overload
-def click(x: float, y: float, name: AndroidName): ...
 
-@overload
-def click(pos: Tuple[float, float], name: AndroidName): ...
-
-def click(*args):
-    if len(args) == 2:
-        (x, y), name = args
-    else:
-        x, y, name = args
-    x: float
-    y: float
-    name: AndroidName
-    print(name)
-    print(x, y)
-    os.system(f'adb -s {name} shell input tap {x} {y}')
-
-
-
-
-
-def main_run(nameList: List[AndroidName], images: List[str]):
+def main_run(androids: List[Android], images: List[str]):
     for image in images:
-        while True:
-            screenshot(nameList[0])
-            if image_to_position(image):
-                for name in nameList:
-                    while True:
-                        screenshot(name)
-                        if center := image_to_position(image):
-                            print(image)
-                            print(center)
-                            click(center, name)
-                            # time.sleep(0.5)
-                            break
-                break
+        androids[0].wait_for_image_like(image)
+        for a in androids:
+            a.click_button_like(image)
 
-
-def main_run_quick(nameList: List[AndroidName], images: List[str]):
+def main_run_quick(androids: List[Android], images: List[str]):
     for image in images:
-        while True:
-            screenshot(nameList[0])
-            if center := image_to_position(image):
-                for name in nameList:
-                    if image == 'timeadd':
-                        os.system(f'adb -s {name} shell input swipe {center[0]} {center[1]} {center[0]} {center[1]} 6000')
-                    else:
-                        click(center, name)
-                    # time.sleep(0.)
-                break
+        center = androids[0].wait_for_image_like(image)
+        for a in androids:
+            a.click(center)
+            # if image == 'timeadd':
+            #     a.swipe(center, center, 6000)
+            # else:
+            #     a.click(center)
 
 
-def to_homepage(nameList: List[AndroidName]):
-    for i in range(0, 6):
-        screenshot(nameList[0])
-        if image_to_position('skip'):
-            for name in nameList:
-                for _ in range(0, 3):
-                    screenshot(name)
-                    if center := image_to_position('skip'):
+def to_homepage(androids: List[Android]):
+    for _ in range(6):
+        if androids[0].find_image_like('skip'):
+            for a in androids:
+                for _ in range(3):
+                    if center := a.find_image_like('skip'):
                         print('skip')
                         print(center)
 
-                        click(center, name)
+                        a.click(center)
                         time.sleep(0.5)
                         break
                     else:
-                        click(640, 360, name)
+                        a.click((640, 360))
             break
         else:
-            click(640, 360, nameList[0])
+            androids[0].click((640, 360))
 
 
-def login(name: AndroidName, idset: UserInfo):
+def login(a: Android, user_info: UserInfo):
     for image in ['ID', 'password', 'login']:
-        while True:
-            screenshot(name)
-            if center := image_to_position(image):
-                print(image)
-                print(center)
-                click(center[0], center[1], name)
-                if image == 'ID':
-                    os.system(f'adb -s {name} shell input text "{idset.username}"')
-                elif image == 'password':
-                    os.system(f'adb -s {name} shell input text "{idset.password}"')
-                break
-            else:
-                click(1200, 50, name)
+        center = a.wait_for_image_like(image,
+            on_missing=lambda: a.click((1200, 50)))
+        print(image)
+        print(center)
+        a.click(center)
+        if image == 'ID':
+            a.input(user_info.username)
+        elif image == 'password':
+            a.input(user_info.password)
 
 
 def get_account(txtname: str):
@@ -121,7 +79,7 @@ def get_account(txtname: str):
         return lines
 
 
-def kick(enumList: List[AndroidName]):
+def kick(enumList: List[Android]):
     main_run(enumList, ['society'])
     time.sleep(2.5)
     main_run(enumList, ['memberinfo'])
@@ -134,16 +92,13 @@ def kick(enumList: List[AndroidName]):
     main_run(enumList, ['homepage_red'])
 
 
-def soadd(enumList: List[AndroidName], soName: str):
+def soadd(enumList: List[Android], soName: str):
     main_run(enumList, ['society', 'sosetting', 'sosearch'])
-    screenshot(enumList[0])
-    while True:
-        if center := image_to_position('soname'):
-            print(center)
-            click(center[0], center[1], enumList[0])
-            os.system(f'adb -s {enumList[0]} shell input text "{soName}"')
-            main_run(enumList, ['ensurecn'])
-            break
+    center = enumList[0].wait_for_image_like('soname')
+    print(center)
+    enumList[0].click(center)
+    enumList[0].input(soName)
+    main_run(enumList, ['ensurecn'])
     time.sleep(3)
     # click(enumList[0])
     main_run(enumList, ['search', 'farmicon', 'farmjoin'])
@@ -161,75 +116,77 @@ if __name__ == '__main__':
 
     result = os.popen('adb devices')
     res = result.read()
-    lines = res.splitlines()[1:]
+    lines = res.splitlines()[1:-1]
 
-    for i in range(0, len(lines)):
-        lines[i] = lines[i].split('\t')[0]
-    lines = list(map(AndroidName, lines[0:-1]))
-    print(lines)
+    def parse(line: str):
+        return Android(line.split('\t')[0])
+
+    androids = list(map(parse, lines))
+    print(androids)
+
+    # TODO
+    input()
 
     # 共28个号，4开为例
     for step in range(0, 7):
-
         # 依次登录4个号
-
-        for i in range(0, len(lines)):
-            login(lines[i], UserInfo(accountList[i+step*4].split(' ')[0],
-                                     accountList[i+step*4].split(' ')[1][0:-1]))
+        for i in range(0, len(androids)):
+            login(androids[i], UserInfo(accountList[i+step*4].split(' ')[0],
+                                     accountList[i+step*4].split(' ')[1][:-1]))
             print(accountList[i+step*4].split(' ')[0])
         time.sleep(5)
-        to_homepage(lines)
-        main_run_quick(lines, ['close_white'])
+        to_homepage(androids)
+        main_run_quick(androids, ['close_white'])
 
         for _ in range(0, 3):
-            main_run_quick(lines, ['add_blue', 'ok_blue', 'ok_white'])
+            main_run_quick(androids, ['add_blue', 'ok_blue', 'ok_white'])
 
-        main_run_quick(lines, ['explor', 'masterbatch',
+        main_run_quick(androids, ['explor', 'masterbatch',
                              '3-1', 'timeadd', 'run_cn', 'ok_blue'])
         time.sleep(2)
-        main_run_quick(lines, ['skip_cn', 'ok_white'])
-        for name in lines:
-            click(1200, 50, name)
-        main_run(lines, ['cancel_white'])
+        main_run_quick(androids, ['skip_cn', 'ok_white'])
+        for a in androids:
+            a.click((1200, 50))
+        main_run(androids, ['cancel_white'])
         time.sleep(2)
 
         # 地下城战斗
         main_run_quick(
-            lines, ['explor_blue', 'underground', 'normalUD', 'ok_blue'])
+            androids, ['explor_blue', 'underground', 'normalUD', 'ok_blue'])
         time.sleep(3)
-        main_run_quick(lines, ['floor1'])
+        main_run_quick(androids, ['floor1'])
         time.sleep(4)
-        main_run_quick(lines, ['challenge_blue'])
+        main_run_quick(androids, ['challenge_blue'])
         time.sleep(3)
         # mainrunQuick(lines,['u1','pico','kkl','cat','getassist','assist','battlestart','ok_blue'])
-        main_run_quick(lines, ['getassist', 'assist', 'battlestart', 'ok_blue'])
+        main_run_quick(androids, ['getassist', 'assist', 'battlestart', 'ok_blue'])
         time.sleep(4)
-        main_run_quick(lines, ['menu_white', 'giveup_white', 'giveup_blue'])
+        main_run_quick(androids, ['menu_white', 'giveup_white', 'giveup_blue'])
         time.sleep(4)
-        main_run_quick(lines, ['withdraw', 'ok_blue'])
+        main_run_quick(androids, ['withdraw', 'ok_blue'])
 
         # 回登陆页，开始下一次iteration
-        main_run_quick(lines, ['mainpage', 'backtotitle', 'ok_blue'])
+        main_run_quick(androids, ['mainpage', 'backtotitle', 'ok_blue'])
         time.sleep(3)
 
     # 踢出换工会上支援
-    login(lines[0], farm1Sudo)
+    login(androids[0], farm1Sudo)
     # login(lines[1],farm2Sudo)
-    login(lines[2], realAccount)
-    to_homepage([lines[0]])
-    to_homepage([lines[2]])
+    login(androids[2], realAccount)
+    to_homepage([androids[0]])
+    to_homepage([androids[2]])
     time.sleep(2)
-    main_run([lines[0], lines[2]], ['close_white'])
+    main_run([androids[0], androids[2]], ['close_white'])
     time.sleep(2)
-    kick([lines[0]])
+    kick([androids[0]])
     time.sleep(2)
-    soadd([lines[2]], 'qxxxFarm2')
+    soadd([androids[2]], 'qxxxFarm2')
     time.sleep(4)
-    main_run([lines[2]], ['setassist', 'addselect', 'myassist', 'set', 'ok_blue'])
+    main_run([androids[2]], ['setassist', 'addselect', 'myassist', 'set', 'ok_blue'])
     time.sleep(3)
-    main_run([lines[2]], ['homepage_red'])
+    main_run([androids[2]], ['homepage_red'])
     time.sleep(2)
-    main_run([lines[0], lines[2]], ['mainpage', 'backtotitle', 'ok_blue'])
+    main_run([androids[0], androids[2]], ['mainpage', 'backtotitle', 'ok_blue'])
 
     accountList = get_account('accountlist2.txt')  # 获取账号列表2
 
@@ -237,61 +194,61 @@ if __name__ == '__main__':
     for step in range(0, 3):
 
         # 依次登陆4个号
-        for i in range(0, len(lines)):
-            login(lines[i], UserInfo(accountList[i+step*4].split(' ')[0],
+        for i in range(0, len(androids)):
+            login(androids[i], UserInfo(accountList[i+step*4].split(' ')[0],
                                      accountList[i+step*4].split(' ')[1][0:-1]))
             print(accountList[i+step*4].split(' ')[0])
         time.sleep(5)
-        to_homepage(lines)
-        main_run_quick(lines, ['close_white'])
+        to_homepage(androids)
+        main_run_quick(androids, ['close_white'])
 
         for _ in range(0, 3):
-            main_run_quick(lines, ['add_blue', 'ok_blue', 'ok_white'])
+            main_run_quick(androids, ['add_blue', 'ok_blue', 'ok_white'])
 
-        main_run_quick(lines, ['explor', 'masterbatch',
+        main_run_quick(androids, ['explor', 'masterbatch',
                              '3-1', 'timeadd', 'run_cn', 'ok_blue'])
         time.sleep(2)
-        main_run_quick(lines, ['skip_cn', 'ok_white'])
-        for name in lines:
-            click(1200, 50, name)
-        main_run(lines, ['cancel_white'])
+        main_run_quick(androids, ['skip_cn', 'ok_white'])
+        for a in androids:
+            a.click((1200, 50))
+        main_run(androids, ['cancel_white'])
         time.sleep(2)
 
         # 地下城战斗
         main_run_quick(
-            lines, ['explor_blue', 'underground', 'normalUD', 'ok_blue'])
+            androids, ['explor_blue', 'underground', 'normalUD', 'ok_blue'])
         time.sleep(3)
-        main_run_quick(lines, ['floor1'])
+        main_run_quick(androids, ['floor1'])
         time.sleep(4)
-        main_run_quick(lines, ['challenge_blue'])
+        main_run_quick(androids, ['challenge_blue'])
         time.sleep(3)
         # mainrunQuick(lines,['u1','pico','kkl','cat','getassist','assist','battlestart','ok_blue'])
-        main_run_quick(lines, ['getassist', 'assist', 'battlestart', 'ok_blue'])
+        main_run_quick(androids, ['getassist', 'assist', 'battlestart', 'ok_blue'])
         time.sleep(4)
-        main_run_quick(lines, ['menu_white', 'giveup_white', 'giveup_blue'])
+        main_run_quick(androids, ['menu_white', 'giveup_white', 'giveup_blue'])
         time.sleep(4)
-        main_run_quick(lines, ['withdraw', 'ok_blue'])
+        main_run_quick(androids, ['withdraw', 'ok_blue'])
 
         # 回登陆页，开始下一次iteration
-        main_run_quick(lines, ['mainpage', 'backtotitle', 'ok_blue'])
+        main_run_quick(androids, ['mainpage', 'backtotitle', 'ok_blue'])
         time.sleep(3)
 
     # 踢出换工会上支援
     # login(lines[0],farm1Sudo)
-    login(lines[1], farm2Sudo)
-    login(lines[2], realAccount)
-    to_homepage([lines[1], lines[2]])
-    main_run([lines[1], lines[2]], ['close_white'])
+    login(androids[1], farm2Sudo)
+    login(androids[2], realAccount)
+    to_homepage([androids[1], androids[2]])
+    main_run([androids[1], androids[2]], ['close_white'])
     time.sleep(2)
-    kick([lines[1]])
+    kick([androids[1]])
     time.sleep(2)
-    soadd([lines[2]], 'qxxxFarm1')
+    soadd([androids[2]], 'qxxxFarm1')
     time.sleep(4)
-    main_run([lines[2]], ['setassist', 'addselect', 'myassist', 'set', 'ok_blue'])
+    main_run([androids[2]], ['setassist', 'addselect', 'myassist', 'set', 'ok_blue'])
     time.sleep(3)
-    main_run([lines[2]], ['homepage_red'])
+    main_run([androids[2]], ['homepage_red'])
     time.sleep(3)
-    main_run([lines[1], lines[2]], ['mainpage', 'backtotitle', 'ok_blue'])
+    main_run([androids[1], androids[2]], ['mainpage', 'backtotitle', 'ok_blue'])
 
     # 退出程序
     os.system('adb kill-server')
